@@ -3,11 +3,11 @@
 #
 # RRAbuntu-First_run.sh
 #
-# To assist in installing RRAbuntu.
+# To assist in installing RRAbuntu. To be run after installing Ubuntu and rebooting.
 #
 #   Geoff Barkman 2010
 #   (based on scripts created by Frederick Henderson)
-#  RRAbuntu-First_run.sh,v 1.12 2010.03.27  FJH
+#  RRAbuntu-First_run.sh,v 1.13 2010.05.21  FJH
 #   
 #   Sections below created by Frederick Henderson
 # 
@@ -30,6 +30,17 @@
 # geoff= Geoff Barkman
 <<CHANGELOG
 ########################## CHANGE LOG ##################################
+version 1.13
+
+Clean up, Added code to get rid of the desktop file that starts the First_run_prompter.sh script that 
+displays a prompt to run this script, down at the end. FJH
+
+Fixed paths that use to go to ~/Desktop/Rivendell to go to
+/etc/skel/Rivendell. FJH
+
+Added loop to hold up the script till RDAirplay starts. FJH
+
+########################################################################
 version1.12
 Removed unneeded sudo on sed command.-FJH
 
@@ -48,7 +59,6 @@ to a question that allows the user to decide if they want to install the demo or
 
 Made section at end of code to delete Desktop icons and 
 add new icons on Desktop section. -geoff
-
 
 ########################################################################
 version 1.11
@@ -121,12 +131,7 @@ done
 
 install_demo() {
 ## Change to directory with promos and add them to the library
-## Rename Rivendell promos so the look better in the demo. Instead of 
-## "Imported from Mixdown?.flac we will get e.g. "Never Pay" -FJH 2010.03.16
-cd ~/Rivendell/Promos
-mv Mixdown1.flac Rivendell_Promo-Never_Pay.flac
-mv Mixdown2.flac Rivendell_Promo-15000_Dollars.flac
-mv Mixdown3.flac Rivendell_Promo-Rock_Steady.flac
+cd /etc/skel/Rivendell/Promos
 rdimport --to-cart=999998 --metadata-pattern=%a-%t. TRAFFIC  ./*.flac
 
 ## Set up the variables to use in the script
@@ -255,13 +260,7 @@ sleep 100
 
 ################## HERE STARTS THE MAIN PROGRAM ####################
 
-# Close the file browser, but we will open it again when we are finished.
-# Show the desktop by minimizing all open windows.-FJH 2010.03.27
-wmctrl -c "Rivendell - File Browser"
-wmctrl -k on
 ## Added devilspie code to position windows.-FJH 2010.03.25
-
-
 # Get the screen sizes, find the line with the asterisks that shows the
 # current screen size, get the first column with the screen dimensions,
 # then using the "x" as a separator get first the screen width and then the height.
@@ -315,8 +314,6 @@ rm ~/temp.conf
 # Kill pulseaudio 
 killall pulseaudio
 
-
-
 # Changed dialog to state that they will be only asked for the
 # password after they click OK.-FJH 2010.03.16
 ## Changed OK and CANCEL to YES and NO Geoff 2010.05.08
@@ -325,12 +322,14 @@ if [ ! $? = 0 ]; then
 	exit
 fi
 
-## Add user ubuntu to the rivendell and audio groups
-# Add current User
+# Restart Rivendell daemons just in case the got messed up
+# by pulseaudio starting at the same time. FJH
+run_sudo_command /etc/init.d/rivendell stop
+run_sudo_command /etc/init.d/rivendell start
 
+## Add user ubuntu to the rivendell and audio groups
 # Make the current linux user name available as a system variable.
 export currentuser=$(whoami)
-
 run_sudo_command adduser $currentuser rivendell
 run_sudo_command adduser $currentuser audio
 
@@ -338,10 +337,9 @@ run_sudo_command adduser $currentuser audio
 # part with the currently running linux username and save it to
 # /etc/rd.conf  Also removed zenity, sleep and cp lines.-FJH 2010.03.16
 # Removed sudo on the sed command below for security reasons as it is not need.-FJH 2010-03-24
-sed s/AudioOwner=username/AudioOwner=$currentuser/ ~/Rivendell/rd.conf >~/Rivendell/temp.conf
-run_sudo_command cp ~/Rivendell/temp.conf /etc/rd.conf
-rm temp.conf
-#/etc/rd.conf
+sed s/AudioOwner=username/AudioOwner=$currentuser/ /etc/skel/Rivendell/rd.conf >~/temp.conf
+run_sudo_command cp ~/temp.conf /etc/rd.conf
+rm ~/temp.conf
 
 ##### FIXME
 ## Fix permissions to /var/snd currently the user is rduser not ubuntu
@@ -399,6 +397,12 @@ sudo -K
 ## Start up RDAirplay for the user
 rdairplay &
 
+# Hang around waiting for RDAirplay to appear. -FJH 2010.05.21
+ISITOPENYET=$(wmctrl -l | sed -n '/.RDAirPlay/p' | awk '{ print $4 }')
+while [ -z $ISITOPENYET  ]; do
+sleep 1
+ISITOPENYET=$(wmctrl -l | sed -n '/.RDAirPlay/p' | awk '{ print $4 }')
+done
 sleep 1
 
 ## Welcome the user with a label in Rivendell
@@ -458,12 +462,13 @@ cp /home/$currentuser/Rivendell/icons/rdlogmanager.desktop /home/$currentuser/De
 
 fi
 
-# Cleanup, if devilspie was running before we started this script then leave it running otherwise kill it.
+# Clean up, if devilspie was running before we started this script then leave it running otherwise kill it.
 if [ ! $LEAVEDEVILSPIERUNNING = 1 ]; then
 	killall devilspie
 fi
+
 # Clean up, Get rid of desktop file that displays the prompt to run this script. FJH
 rm ~/.config/autostart/RRAbuntu_autostart.sh.desktop
 
 
-END
+# END

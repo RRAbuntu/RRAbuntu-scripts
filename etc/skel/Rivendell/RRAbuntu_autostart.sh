@@ -102,9 +102,9 @@ fi
 
 # Check for /rofs directory and for the file /etc/casper.conf that only exists when booted from the CD.
 if [ -d /rofs -a -f /etc/casper.conf ] ; then
-        readme_displayer
+  readme_displayer
 else
-        first_run_prompter
+  first_run_prompter
 fi
 
 # END
