@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Demo RRAbuntu
+Exec=/etc/skel/Rivendell/RRAbuntu-demo.sh
+Icon=/etc/skel/Rivendell/icons/RRAbuntu-demo.svg
+Comment=Runs the RRAbuntu Demo
+

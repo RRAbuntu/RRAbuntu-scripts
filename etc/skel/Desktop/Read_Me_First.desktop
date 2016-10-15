@@ -1,0 +1,6 @@
+[Desktop Entry]
+Type=Application
+Name=Read Me First
+Exec=/etc/skel/Rivendell/Readme_displayer.sh
+Icon=/etc/skel/Rivendell/icons/Readme.svg
+Comment=Displays the readme file

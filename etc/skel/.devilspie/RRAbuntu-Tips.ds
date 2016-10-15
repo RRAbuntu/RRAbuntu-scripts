@@ -1,0 +1,14 @@
+; generated_rule zenity-Tip
+( if 
+( and 
+( contains ( application_name ) "zenity" )
+( contains ( window_name ) "Tip" )
+) 
+( begin 
+( focus )
+( above )
+( wintype "normal" )
+( geometry "+0+5000" )
+( println "match" )
+)
+)

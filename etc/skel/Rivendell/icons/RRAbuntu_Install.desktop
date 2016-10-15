@@ -1,0 +1,6 @@
+[Desktop Entry]
+Type=Application
+Name=Install RRAbuntu
+Exec=/etc/skel/Rivendell/RRAbuntu-install.sh
+Icon=/etc/skel/Rivendell/icons/RRAbuntu-install.svg
+Comment=Starts the RRAbuntu Installation

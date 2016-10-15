@@ -1,0 +1,14 @@
+; generated_rule zenity-RRAbuntu
+( if 
+( and 
+( contains ( application_name ) "zenity" )
+( contains ( window_name ) "RRAbuntu" )
+) 
+( begin 
+( focus )
+( above )
+( wintype "normal" )
+( geometry "+REPLACEME+5000" )
+( println "match" )
+)
+)

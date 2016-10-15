@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Readme Displayer
+Exec=/etc/skel/Rivendell/RRAbuntu_autostart.sh
+Icon=system-run
+Comment=Auto displays the readme.txt or a dialog to prompt the user to run the first run script depending on if they booted from the CD or not.
+Name[en_US]=RRAbuntu_autostart.sh.desktop

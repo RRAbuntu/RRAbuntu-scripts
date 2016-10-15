@@ -5,9 +5,9 @@
 #
 # Setup test tone, promos, sample logs for demoing Rivendell with RRAbuntu.
 #
-#   (C) Copyright 2002-2003 Frederick Henderson <frederick@henderson-meier.org>
+#   (C) Copyright 2010 Frederick Henderson <frederick@henderson-meier.org>
 #
-#      RRAbuntu-demo.sh,v 1.11 2010.03.18  FJH
+#      RRAbuntu-demo.sh,v 1.13 2010.05.21  FJH
 #
 #   This program is free software; you can redistribute it and/or modify
 #   it under the terms of the GNU General Public License version 2 as
@@ -27,6 +27,35 @@
 # FJH= Frederick Henderson frederickjh@henderson-meier.org
 <<CHANGELOG
 ####################### CHANGE LOG ######################
+version 1.13
+Removed commands to close and open Nautilus at beginning and 
+end as now the scripts are started from icons on the desktop. FJH
+
+Added code to turn off pulseaudio autospawning and killed any 
+running pulseaudio instances. FJH
+
+Fixed paths that use to go to ~/Desktop/Rivendell to go to
+/etc/skel/Rivendell. FJH
+
+Added loop to hold up the script till RDAirplay starts. FJH
+
+#########################################################
+version 1.12
+
+Added code for positioning the zenity dialog windows. Windows with 
+RRAbuntu in the title will be sent down to the bottom center of the 
+screen, while windows with titles with Tip in them will be sent to 
+the bottom left-hand corner. Only include one of the keywords 
+(RRAbuntu, Tip) in the title or things may not work the way you want. 
+The .ds files setup the parameters on where which windows should go.
+We use a program called devilspie to move the windows around. So we 
+will start and stop it after we are finished. Add more .ds files to 
+add new positioning setups. -FJH
+
+Moved Rivendell directory from Desktop into users home directory.
+Modified to point to files in the /etc/skel directory - geoff 2010.05.09
+
+################################################################
  version 1.11
  changed version numbers to match CD release numbers. 
  intermediary changes before the next CD get a third number like
@@ -54,9 +83,60 @@ before it is run.-FJH
 #########################################################
 CHANGELOG
 
+## Added devilspie code to position windows.-FJH 2010.03.25
+
+# Get the screen sizes, find the line with the asterisks that shows the
+# current screen size, get the first column with the screen dimensions,
+# then using the "x" as a separator get first the screen width and then the height.
+WIDTH=$(xrandr | sed -n '/\*/p' | awk '{ print $1 }' | awk -F "x" '{ print $1 }')
+HEIGHT=$(xrandr | sed -n '/\*/p' | awk '{ print $1 }' | awk -F "x" '{ print $2 }')
+
+# Figure out where to position the top left corner of of our window based on the width
+# of the screen. The zenity dialogs are normally 443 pixel wide. So we subtract this
+# from the width and divide by 2.
+HORIZONTALPOS=$(echo "($WIDTH-443)/ 2" | bc )
+
+# Put the horizontal position in our RRAbuntu.ds file to position the windows with
+# RRAbuntu. Make .devilspie dirctory in the users home folder. Then copy RRAbuntu.ds
+# and the Tips.ds file to their proper home.
+sed s/REPLACEME/$HORIZONTALPOS/ /etc/skel/devilspie/RRAbuntu.ds >~/temp.ds
+cp ~/temp.ds ~/.devilspie/RRAbuntu.ds
+rm ~/temp.ds
+
+
+# Figure out if devilspie is running. If so remember this, kill it and restart it so
+# it re-reads the configuration files and we will also redirect error messages to the trash.
+# Way down at the end of this script we will decided whether or not we should kill devilspie or let it run.
+DEVILSPIEPS=$(ps -C devilspie -o comm=)
+LEAVEDEVILSPIERUNNING=0
+if [ ! -z $DEVILSPIEPS ]; then
+	LEAVEDEVILSPIERUNNING=1
+fi
+echo $LEAVEDEVILSPIERUNNING
+killall devilspie
+devilspie 2> /dev/null &
+
 ## Add user ubuntu to the rivendell and audio groups
 sudo adduser ubuntu rivendell
 sudo adduser ubuntu audio
+
+## Turn off pulseaudio autospawning and then kill all instances of it.
+# Copy pulseaudo client configuration file to home folder
+cp /etc/pulse/client.conf ~/.pulse/client.conf
+
+# Find the string "; autospawn = yes"and replace it with
+# autospawn = no. This disables pulseaudio autospawning. FJH 
+sed s/\;\ autospawn\ =\ yes/autospawn\ =\ no/ ~/.pulse/client.conf >~/temp.conf
+cp ~/temp.conf ~/.pulse/client.conf
+rm ~/temp.conf
+
+# Kill pulseaudio 
+killall pulseaudio
+
+# Restart Rivendell daemons just in case the got messed up
+# by pulseaudio starting at the same time. FJH
+/etc/init.d/rivendell stop
+/etc/init.d/rivendell start
 
 ## Start RDAdmin to get mysql database prompt to create
 ## rivendell database. This only happens the first time
@@ -68,12 +148,12 @@ sleep 2
 
 ## Inform the user what the username and password are for
 ## The mysql database setup
-zenity --info --text="A window titled mysql Admin will pop-up behind this one. The username is... root and the password is....  rivendell.  Close this window only after entering the username and password, Click OK and after the Created Database window with the message New Rivendell Database Created! pops up."
+zenity --info --title="RRAbuntu Demo Setup - MySQL" --text="A window titled mysql Admin will pop-up. The username is... root and the password is....  rivendell.  Close this window only after entering the username and password, Click OK and after the Created Database window with the message New Rivendell Database Created! pops up."
 
-zenity --info --text="Now rdadmin will start up. The username is .... admin
+zenity --info --title="RRAbuntu Demo Setup - RDAdmin" --text="Now rdadmin will start up. The username is .... admin
 with no password"
 
-## FIX ME
+## FIXME
 ## Fix permissions to /var/snd currently the user is rduser not ubuntu
 ## Is this something we need to fix or is it something Alban needs to fix
 ## or does this go back to Fred G.?
@@ -87,8 +167,15 @@ sudo chown ubuntu:rivendell /var/snd
 rdgen -t 10 -l 16 /var/snd/999999_000.wav
 
 ## Start up RDAirplay for the user
+# Removed ampersand after rdairplay. This was allowing the script 
 rdairplay &
 
+# Hang around waiting for RDAirplay to appear. -FJH 2010.05.21
+ISITOPENYET=$(wmctrl -l | sed -n '/.RDAirPlay/p' | awk '{ print $4 }')
+while [ -z $ISITOPENYET  ]; do
+sleep 1
+ISITOPENYET=$(wmctrl -l | sed -n '/.RDAirPlay/p' | awk '{ print $4 }')
+done
 sleep 1
 
 ## Welcome the user with a label in Rivendell
@@ -111,22 +198,14 @@ sleep 1
 rmlsend PP\ C\ 1\ 1\!
 sleep 5
 
-zenity --info --text="If you heard the test tone twice then this script has properly configured Rivendell. Now on with the show!"
+zenity --info --title="RRAbuntu Demo Setup - Congratulations!" --text="If you heard the test tone twice then this script has properly configured Rivendell. Now on with the show!"
 
 sleep 1
-#killall rdairplay
 
-## Change to directory with promos and add them to the library
-## Rename Rivendell promos so the look better in the demo. Instead of 
-## "Imported from Mixdown?.flac we will get e.g. "Never Pay" -FJH 2010.03.16
-cd ~/Desktop/Rivendell/Promos
-mv Mixdown1.flac Rivendell_Promo-Never_Pay.flac
-mv Mixdown2.flac Rivendell_Promo-15000_Dollars.flac
-mv Mixdown3.flac Rivendell_Promo-Rock_Steady.flac
+## Change to directory with promos and add them to the library -FJH
+cd /etc/skel/Rivendell/Promos
 rdimport --to-cart=999998 --metadata-pattern=%a-%t. TRAFFIC  ./*.flac
 
-## Include variables from rd.conf to use
-#./etc/rd.conf
 
 ## Set up the variables to use in the script
 USER=root
@@ -245,6 +324,12 @@ rmlsend LL\ 2\ Titles\ Log!
 
 sleep 100
 
-zenity --info --text="Thank you for testing the RRAbuntu demo CD. If you would like to install RRAbuntu on your system. Click on RRAbuntu-install.sh in the Rivendell folder on the desktop. www.rivendellaudio.org . 
+zenity --info --title="RRAbuntu Demo Setup - Thanks!" --text="Thank you for testing the RRAbuntu demo CD. If you would like to install RRAbuntu on your system. Click on the Install RRAbuntu icon on the Desktop.  www.rivendellaudio.org . 
 Many Thanks from Geoff Barkman, Frederick Henderson and Alban Peignier"
 
+# Cleanup, if devilspie was running before we started this script then leave it running otherwise kill it.
+if [ ! $LEAVEDEVILSPIERUNNING = 1 ]; then
+	killall devilspie
+fi
+
+# END

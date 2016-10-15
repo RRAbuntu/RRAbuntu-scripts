@@ -1,0 +1,6 @@
+[Desktop Entry]
+Type=Application
+Name=After Install RRAbuntu
+Exec=/etc/skel/Rivendell/RRAbuntu-First_run.sh
+Icon=/etc/skel/Rivendell/icons/RRAbuntu-post-install.svg
+Comment=Post install config of RRAbuntu
