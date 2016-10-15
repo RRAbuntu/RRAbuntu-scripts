@@ -30,6 +30,9 @@
 # geoff= Geoff Barkman
 <<CHANGELOG
 ########################## CHANGE LOG ##################################
+Version 2.0 - Beta
+Reworded messages to they tell how to compile rivendell instead of running first-run script - geoff
+########################################################
 version 1.13
 initial release -FJH
 #######################################################
@@ -89,12 +92,17 @@ zenity --text-info --title="Welcome to RRAbuntu" --width=$SCREENWIDTH --height=$
 
 first_run_prompter(){
 # Inform the user that we still need to setup Rivendell then offer to start the script.
-zenity --question --text="Now that you have installed Ubuntu we need to setup Rivendell like we did for the demo! Do you want me to start the script to do this?"
+# Reworded message because we don't have the demo available now on the demo :( - geoff
+zenity --question --text="Now that you have installed Ubuntu we need to compile Rivendell. Do you wish to do this?"
 if [ ! $? = 0 ]; then
 exit
 else
 # Start the RRAbuntu_first_run.sh script
-/etc/skel/Rivendell/RRAbuntu-First_run.sh &
+#/etc/skel/Rivendell/RRAbuntu-First_run.sh &
+
+# Replaced  RRAbuntu_first run with a pop up of instructions telling how to compile it. - geoff
+zenity --info --title="RRAbuntu Setup" --text="To set up RRAbuntu. Double click on Rivendell_Compile.sh on the desktop and choose RUN IN TERMINAL"
+
 fi
 }
 
@@ -102,9 +110,9 @@ fi
 
 # Check for /rofs directory and for the file /etc/casper.conf that only exists when booted from the CD.
 if [ -d /rofs -a -f /etc/casper.conf ] ; then
-  readme_displayer
+        readme_displayer
 else
-  first_run_prompter
+        first_run_prompter
 fi
 
 # END

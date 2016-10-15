@@ -8,7 +8,7 @@
 #   Geoff Barkman 2010
 #   (based on scripts created by Frederick Henderson)
 #
-#  RRAbuntu-install.sh,v 1.12 2010.03.27  FJH
+#  RRAbuntu-install.sh,v 2.0 beta 2011.05.30  Geoff
 #     
 #   This program is free software; you can redistribute it and/or modify
 #   it under the terms of the GNU General Public License version 2 as
@@ -29,6 +29,11 @@
 #
 <<CHANGELOG
 ######################### CHANGE LOG ###########################
+version 2.0 - beta
+
+Added 5 second pause while Ubuntu installer detects your region - Geoff 2011.06.01
+
+################################################################
 version 1.12
 
 Added code for positioning the zenity dialog windows. Windows with 
@@ -131,6 +136,9 @@ wmctrl -F -r Install -e 0,$HORIZONTALPOSINSTALLER,0,-1,-1
 zenity --info --title="RRAbuntu Installation - Step 1 of 7" --text="1 of 7  Welcome - Select your language. - Click forward"
 wmctrl -F -r Install -e 0,$HORIZONTALPOSINSTALLER,0,-1,-1
 
+# Added 5 sec delay so that there is a small pause while Ubuntu detects your region. - Geoff
+sleep 5
+
 zenity --info --title="RRAbuntu Installation - Step 2 of 7" --text="2 of 7 Where are you? - Select your location on the map. - Click forward" --width=443
 wmctrl -F -r Install -e 0,$HORIZONTALPOSINSTALLER,0,-1,-1
 
@@ -138,6 +146,7 @@ zenity --info --title="RRAbuntu Installation - Step 3 of 7" --text="3 of 7 Keybo
 wmctrl -F -r Install -e 0,$HORIZONTALPOSINSTALLER,0,-1,-1
 
 zenity --warning --title="RRAbuntu Installation - Step 4 of 7" --text="4 of 7 Prepare disk space - Select use entire disk. (WARNING: Selecting this option will delete your entire existing hard drive contents) - Or you can choose partitions manually (advanced users) Beginners DON'T choose this. - Click forward" &
+
 sleep 7
 
 zenity --info --title="Tip" --text="Note there are other options at this step, but I recommend, just erasing whole disk, rather than keeping windows, i.e. dual boot (for simplicity)" --width=310

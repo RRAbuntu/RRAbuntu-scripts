@@ -1,0 +1,67 @@
+ntp
+
+Put in /etc rd.conf and asound.conf
+ 
+add to /etc/skel/.bashrc
+export QTDIR=/usr/share/qt3
+export PATH=$PATH:$QTDIR/bin
+
+add other stuff to /etc/skel 
+.pulse/client.conf
+.devilspie
+.config
+Rivendell
+Desktop
+
+cd ~/Rivendell/Downloads/
+
+tar -vxzf ~/Rivendell/Downloads/rivendell-2.0.1.tar.gz 
+cd ~/Rivendell/Downloads/rivendell-2.0.1/
+~/Rivendell/Downloads/rivendell-2.0.1/configure --disable-hpi --libexecdir=/var/www/rd-bin
+~/Rivendell/Downloads/rivendell-2.0.1/make
+sudo ~/Rivendell/Downloads/rivendell-2.0.1/make install
+sudo ldconfig
+sudo cp ~/Rivendell/Downloads/rivendell-2.0.1/debian/rivendell.init /etc/init.d/rivendell
+sudo cp ~/Rivendell/Downloads/rivendell-2.0.1/conf/rd-bin.conf /etc/apache2/conf.d/
+
+sudo mkdir /var/snd
+
+sudo chown -R www-data:www-data /var/snd
+sudo chmod -R 777 /var/snd
+
+sudo addgroup www-data audio
+
+mkdir /var/run/rivendell
+
+Set up real time priorities
+
+echo '@rivendell - rtprio 99
+@rivendell - memlock 250000
+@rivendell - nice -10' >/tmp/rivendell.conf
+
+
+sudo cp /tmp/rivendell.conf /etc/security/limits.d/rivendell.conf
+rm /tmp/rivendell.conf
+cp /etc/pulse/client.conf ~/.pulse/client.conf
+mc
+ps -C pulseaudio
+killall pulseaudio
+ps -C pulseaudio
+
+
+sudo /etc/init.d/rivendell start
+
+sudo ln -s /etc/init.d/rivendell /etc/rc5.d/S99rivendell
+sudo ln -s /etc/init.d/rivendell /etc/rc2.d/S99rivendell
+sudo ln -s /etc/init.d/rivendell /etc/rc0.d/K99rivendell
+
+Remove old icons for installing
+
+Icons on desktop
+
+rdadmin
+
+rdlibrary
+
+
+
