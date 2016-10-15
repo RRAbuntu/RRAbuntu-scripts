@@ -30,6 +30,12 @@
 # geoff= Geoff Barkman
 <<CHANGELOG
 ########################## CHANGE LOG ##################################
+version 1,14
+
+Major rewrite to get everything that I could into functions. My hope is
+that this will make the code more portable and we can eventually merge
+everything into one script.
+########################################################################
 version 1.13
 
 Clean up, Added code to get rid of the desktop file that starts the First_run_prompter.sh script that 
@@ -129,6 +135,198 @@ zenity --question --title='RRAbuntu Rivendell Setup - Attention Needed!' --text=
 done
 }
 
+
+
+function restartdaemons(){
+# Restart Rivendell daemons
+run_sudo_command /etc/init.d/rivendell stop
+run_sudo_command /etc/init.d/rivendell start
+}
+
+function devilspiestartup(){
+## Devilspie code to position windows.
+# Get the screen sizes, find the line with the asterisks that shows the
+# current screen size, get the first column with the screen dimensions,
+# then using the "x" as a separator get first the screen width and then the height.
+WIDTH=$(xrandr | sed -n '/.0\*/p' | awk '{ print $1 }' | awk -F "x" '{ print $1 }')
+HEIGHT=$(xrandr | sed -n '/.0\*/p' | awk '{ print $1 }' | awk -F "x" '{ print $2 }')
+
+# Figure out where to position the top left corner of of our window based on the width
+# of the screen. The zenity dialogs are normally 443 pixel wide. So we subtract this
+# from the width and divide by 2.
+HORIZONTALPOS=$(echo "($WIDTH-443)/ 2" | bc )
+
+# Put the horizontal position in our RRAbuntu.ds file to position the windows with
+# RRAbuntu. Make .devilspie dirctory in the users home folder. Then copy RRAbuntu.ds
+# and the Tips.ds file to their proper home.
+sed s/REPLACEME/$HORIZONTALPOS/ /etc/skel/devilspie/RRAbuntu.ds >~/temp.ds
+cp ~/temp.ds ~/.devilspie/RRAbuntu.ds
+rm ~/temp.ds
+
+# Figure out if devilspie is running. If so remember this, kill it and restart it so
+# it re-reads the configuration files and we will also redirect error messages to the trash.
+# Way down at the end of this script we will decided whether or not we should kill devilspie or let it run.
+DEVILSPIEPS=$(ps -C devilspie -o comm=)
+LEAVEDEVILSPIERUNNING=0
+if [ ! -z $DEVILSPIEPS ]; then
+	LEAVEDEVILSPIERUNNING=1
+fi
+echo $LEAVEDEVILSPIERUNNING
+killall devilspie
+devilspie 2> /dev/null &
+}
+
+function readytoconfigure(){
+# Question the user if the really want to run the script.
+zenity --question --title="RRAbuntu Rivendell Setup - Ready to configure? " --text="These instructions are for configuring RRAbuntu on first reboot after the installation. Are you ready to do this?"
+# Check the exit status $? to see if the user clicked OK(=0) or Cancel(=1).
+# Then exit the whole script if they clicked Cancel.-FJH 2010.03.16
+if [ ! $? = 0 ]; then
+exit
+fi
+}
+
+function disablepaautospawning(){
+## Turn off pulseaudio autospawning and then kill all instances of it.
+# Copy pulseaudo client configuration file to home folder
+cp /etc/pulse/client.conf ~/.pulse/client.conf
+
+# Find the string "; autospawn = yes"and replace it with
+# autospawn = no. This disables pulseaudio autospawning. FJH 
+sed s/\;\ autospawn\ =\ yes/autospawn\ =\ no/ ~/.pulse/client.conf >~/temp.conf
+cp ~/temp.conf ~/.pulse/client.conf
+rm ~/temp.conf
+
+# Kill pulseaudio 
+killall pulseaudio
+}
+
+function entersudopassword(){
+# Ask user to under the SUDO password to run commands as the super user.
+zenity --question --title='RRAbuntu Rivendell Setup - Password will be needed!' --text="You will be asked for your password after clicking YES. Please enter your Linux user password from the Ubuntu installation. We need this as some parts of the script need to be run as the super user. If the script takes longer than 5 minutes to complete you may be asked again. If you are uncomfortable with this select NO to exit."
+if [ ! $? = 0 ]; then
+	exit
+fi
+}
+
+function addcurrentlinuxusertorivendellandaudiogroups(){
+## Add current linux user to the rivendell and audio groups
+# Make the current linux user name available as a system variable.
+export currentuser=$(whoami)
+run_sudo_command adduser $currentuser rivendell
+run_sudo_command adduser $currentuser audio
+}
+
+function copycurrenlinuxusertoaudioowner(){
+# Find the string "AudioOwner=username"and replace the username
+# part with the currently running linux username and save it to
+# /etc/rd.conf  Also removed zenity, sleep and cp lines.-FJH 2010.03.16
+# Removed sudo on the sed command below for security reasons as it is not need.-FJH 2010-03-24
+sed s/AudioOwner=username/AudioOwner=$currentuser/ /etc/skel/Rivendell/rd.conf >~/temp.conf
+run_sudo_command cp ~/temp.conf /etc/rd.conf
+rm ~/temp.conf
+}
+
+function setpermissionsforvarsnd(){
+##### FIXME
+## Fix permissions to /var/snd currently the user is rduser not ubuntu
+## nor the current user.
+## Is this something we need to fix or is it something Alban needs to fix
+## or does this go back to Fred G.?
+## Moved up in the script to before Rivendell daemons are started and test tone is created. -FJH 2010.03.16
+run_sudo_command chown $currentuser:rivendell /var/snd
+}
+
+function setpermissionsforvarlogrivendell(){
+##### FIXME
+## Fix permissions to /var/log/rivendell currently the user is rduser not ubuntu
+## nor the current user.
+## Is this something we need to fix or is it something Alban needs to fix
+## or does this go back to Fred G.?
+run_sudo_command chown $currentuser:rivendell /var/log/rivendell
+}
+
+function startrivendelldaemons(){
+# Start the Rivendell daemons. -FJH 2010.03.16
+run_sudo_command /etc/init.d/rivendell start
+}
+
+function startrdadminfirsttime(){
+## Start RDAdmin to get mysql database prompt to create
+## rivendell database. This only happens the first time
+## RDAdmin starts  after new install or after updating
+## to a new version. It is very important to run
+## RDAdmin after upgrading to a new version of Rivendell
+rdadmin &
+sleep 2
+
+## Inform the user what the username and password are for
+## The mysql database setup
+zenity --info --title="RRAbuntu Rivendell Setup - MySQL" --text="A window titled mysql Admin will pop-up behind this one. The username is... root and the password is....  rivendell.  Close this window only after entering the username and password, Click OK and after the Created Database window with the message New Rivendell Database Created! pops up."
+
+zenity --info --title="RRAbuntu Rivendell Setup - RDAdmin" --text="Now rdadmin will start up. The username is .... admin
+with no password"
+}
+
+function generatetesttone(){
+## Generate Test tone for the RDLibrary
+# Removed sudo from rdgen command  to generate test tone as it is no
+# longer needed now that the linux user is set as owner of the folder
+# before it is run.-FJH 2010.03.17
+rdgen -t 10 -l 16 /var/snd/999999_000.wav
+}
+
+function removesudotimestamp(){
+## Since we are finished with sudo commands remove the user's
+# timestamp entirely from the /etc/sudoer file to prevent them
+# from running sudo command without retyping the password as a
+# safety precaution. This would time-out in 5 minutes from the
+# time the user enter the password to allow sudo command, but
+# we want to be on the safe side.-FJH 2010.03.17
+sudo -K
+}
+
+function rdairplaydemo(){
+## Start up RDAirplay for the user
+rdairplay &
+
+# Hang around waiting for RDAirplay to appear. -FJH 2010.05.21
+ISITOPENYET=$(wmctrl -l | sed -n '/.RDAirPlay/p' | awk '{ print $4 }')
+while [ -z $ISITOPENYET  ]; do
+sleep 1
+ISITOPENYET=$(wmctrl -l | sed -n '/.RDAirPlay/p' | awk '{ print $4 }')
+done
+sleep 1
+
+## Welcome the user with a label in Rivendell
+rmlsend LC\ blue\ Welcome\ to\ Rivendell\ Radio\ Automation\!
+sleep 1
+
+## Load test tone into Main log=1 (Aux 1 log=2, Aux 2 log=3)
+rmlsend PX\ 1\ 999999\!
+sleep 1
+
+## Start the log playing
+rmlsend PN\ 1\!
+sleep 10
+
+## Load the test tone in the button at row 1, column 1 of the current panel.
+rmlsend PE\ C\ 1\ 1\ 999999\!
+sleep 1
+
+#Play the button at row 1, column 1 of the current panel.
+rmlsend PP\ C\ 1\ 1\!
+
+sleep 6
+## Changed OK and CANCEL to YES and NO geoff 2010.05.08
+zenity --question --title="RRAbuntu Rivendell Setup - Did you hear it?" --text="If you heard the test tone twice then this script has properly configured Rivendell. If you would like, we can now install the demo the same as with the live CD.  Press YES to install the demo audio and logs. NO to not install the demo."
+# Check the exit status $? to see if the user clicked OK(=0) or Cancel(=1).
+# Then exit the whole script if they clicked Cancel.-FJH 2010.03.16
+if [ $? = 0 ]; then
+install_demo
+fi
+}
+
 install_demo() {
 ## Change to directory with promos and add them to the library
 cd /etc/skel/Rivendell/Promos
@@ -221,7 +419,7 @@ mysql -u $USER -p$PASSWORD -e"USE Rivendell;
 mysql -u $USER -p$PASSWORD -e"USE Rivendell;
       GRANT ALL ON TITLES_LOG TO $RD_USER IDENTIFIED BY \"$RD_PASSWORD\""
 mysql -u $USER -p$PASSWORD -e"USE Rivendell;
-      INSERT INTO LOGS (NAME,SERVICE,DESCRIPTION,ORIGIN_USER,ORIGIN_DATETIME) 
+      INSERT INTO LOGS (NAME,SERVICE,DESCRIPTION,ORIGIN_USER,ORIGIN_DATETIME)
       VALUES (\"TITLES\",\"Production\",\"Titles Log\",\"user\",NOW())"
 
 
@@ -258,188 +456,12 @@ rmlsend LL\ 2\ Titles\ Log!
 sleep 100
 }
 
-################## HERE STARTS THE MAIN PROGRAM ####################
-
-## Added devilspie code to position windows.-FJH 2010.03.25
-# Get the screen sizes, find the line with the asterisks that shows the
-# current screen size, get the first column with the screen dimensions,
-# then using the "x" as a separator get first the screen width and then the height.
-WIDTH=$(xrandr | sed -n '/.0\*/p' | awk '{ print $1 }' | awk -F "x" '{ print $1 }')
-HEIGHT=$(xrandr | sed -n '/.0\*/p' | awk '{ print $1 }' | awk -F "x" '{ print $2 }')
-
-# Figure out where to position the top left corner of of our window based on the width
-# of the screen. The zenity dialogs are normally 443 pixel wide. So we subtract this
-# from the width and divide by 2.
-HORIZONTALPOS=$(echo "($WIDTH-443)/ 2" | bc )
-
-# Put the horizontal position in our RRAbuntu.ds file to position the windows with
-# RRAbuntu. Make .devilspie dirctory in the users home folder. Then copy RRAbuntu.ds
-# and the Tips.ds file to their proper home.
-sed s/REPLACEME/$HORIZONTALPOS/ /etc/skel/devilspie/RRAbuntu.ds >~/temp.ds
-cp ~/temp.ds ~/.devilspie/RRAbuntu.ds
-rm ~/temp.ds
-
-# Figure out if devilspie is running. If so remember this, kill it and restart it so
-# it re-reads the configuration files and we will also redirect error messages to the trash.
-# Way down at the end of this script we will decided whether or not we should kill devilspie or let it run.
-DEVILSPIEPS=$(ps -C devilspie -o comm=)
-LEAVEDEVILSPIERUNNING=0
-if [ ! -z $DEVILSPIEPS ]; then
-	LEAVEDEVILSPIERUNNING=1
-fi
-echo $LEAVEDEVILSPIERUNNING
-killall devilspie
-devilspie 2> /dev/null &
-
-#### NOTE: the next part of this script used to be RRAbuntu-Reboot-1.sh
-
-# Change first dialog to question and added code to allow aborting. -FJH 2010.03.16
-zenity --question --title="RRAbuntu Rivendell Setup - Ready to configure? " --text="These instructions are for configuring RRAbuntu on first reboot after the installation. Are you ready to do this?"
-# Check the exit status $? to see if the user clicked OK(=0) or Cancel(=1).
-# Then exit the whole script if they clicked Cancel.-FJH 2010.03.16
-if [ ! $? = 0 ]; then
-exit
-fi
-
-## Turn off pulseaudio autospawning and then kill all instances of it.
-# Copy pulseaudo client configuration file to home folder
-cp /etc/pulse/client.conf ~/.pulse/client.conf
-
-# Find the string "; autospawn = yes"and replace it with
-# autospawn = no. This disables pulseaudio autospawning. FJH 
-sed s/\;\ autospawn\ =\ yes/autospawn\ =\ no/ ~/.pulse/client.conf >~/temp.conf
-cp ~/temp.conf ~/.pulse/client.conf
-rm ~/temp.conf
-
-# Kill pulseaudio 
-killall pulseaudio
-
-# Changed dialog to state that they will be only asked for the
-# password after they click OK.-FJH 2010.03.16
-## Changed OK and CANCEL to YES and NO Geoff 2010.05.08
-zenity --question --title='RRAbuntu Rivendell Setup - Password will be needed!' --text="You will be asked for your password after clicking YES. Please enter your Linux user password from the Ubuntu installation. We need this as some parts of the script need to be run as the super user. If the script takes longer than 5 minutes to complete you may be asked again. If you are uncomfortable with this select NO to exit."
-if [ ! $? = 0 ]; then
-	exit
-fi
-
-# Restart Rivendell daemons just in case the got messed up
-# by pulseaudio starting at the same time. FJH
-run_sudo_command /etc/init.d/rivendell stop
-run_sudo_command /etc/init.d/rivendell start
-
-## Add user ubuntu to the rivendell and audio groups
-# Make the current linux user name available as a system variable.
-export currentuser=$(whoami)
-run_sudo_command adduser $currentuser rivendell
-run_sudo_command adduser $currentuser audio
-
-# Find the string "AudioOwner=username"and replace the username
-# part with the currently running linux username and save it to
-# /etc/rd.conf  Also removed zenity, sleep and cp lines.-FJH 2010.03.16
-# Removed sudo on the sed command below for security reasons as it is not need.-FJH 2010-03-24
-sed s/AudioOwner=username/AudioOwner=$currentuser/ /etc/skel/Rivendell/rd.conf >~/temp.conf
-run_sudo_command cp ~/temp.conf /etc/rd.conf
-rm ~/temp.conf
-
-##### FIXME
-## Fix permissions to /var/snd currently the user is rduser not ubuntu
-## nor the current user.
-## Is this something we need to fix or is it something Alban needs to fix
-## or does this go back to Fred G.?
-## Moved up in the script to before Rivendell daemons are started and test tone is created. -FJH 2010.03.16
-run_sudo_command chown $currentuser:rivendell /var/snd
-
-##### FIXME
-## Fix permissions to /var/log/rivendell currently the user is rduser not ubuntu
-## nor the current user.
-## Is this something we need to fix or is it something Alban needs to fix
-## or does this go back to Fred G.?
-run_sudo_command chown $currentuser:rivendell /var/log/rivendell
-
-# Replaced dialog to tell the user to reboot with code below
-# to start the Rivendell daemons. -FJH 2010.03.16
-run_sudo_command /etc/init.d/rivendell start
-
-#### NOTE: the script below here used to be RRAbuntu-Reboot-final.sh
-
-## Start RDAdmin to get mysql database prompt to create
-## rivendell database. This only happens the first time
-## RDAdmin starts  after new install or after updating
-## to a new version. It is very important to run
-## RDAdmin after upgrading to a new version of Rivendell
-rdadmin &
-sleep 2
-
-## Inform the user what the username and password are for
-## The mysql database setup
-zenity --info --title="RRAbuntu Rivendell Setup - MySQL" --text="A window titled mysql Admin will pop-up behind this one. The username is... root and the password is....  rivendell.  Close this window only after entering the username and password, Click OK and after the Created Database window with the message New Rivendell Database Created! pops up."
-
-zenity --info --title="RRAbuntu Rivendell Setup - RDAdmin" --text="Now rdadmin will start up. The username is .... admin
-with no password"
-
-
-## Generate Test tone for the RDLibrary
-# Removed sudo from rdgen command  to generate test tone as it is no
-# longer needed now that the linux user is set as owner of the folder
-# before it is run.-FJH 2010.03.17
-rdgen -t 10 -l 16 /var/snd/999999_000.wav
-
-## Since we are finished with sudo commands remove the user's
-# timestamp entirely from the /etc/sudoer file to prevent them
-# from running sudo command without retyping the password as a
-# safety precaution. This would time-out in 5 minutes from the
-# time the user enter the password to allow sudo command, but
-# we want to be on the safe side.-FJH 2010.03.17
-sudo -K
-
-
-
-## Start up RDAirplay for the user
-rdairplay &
-
-# Hang around waiting for RDAirplay to appear. -FJH 2010.05.21
-ISITOPENYET=$(wmctrl -l | sed -n '/.RDAirPlay/p' | awk '{ print $4 }')
-while [ -z $ISITOPENYET  ]; do
-sleep 1
-ISITOPENYET=$(wmctrl -l | sed -n '/.RDAirPlay/p' | awk '{ print $4 }')
-done
-sleep 1
-
-## Welcome the user with a label in Rivendell
-rmlsend LC\ blue\ Welcome\ to\ Rivendell\ Radio\ Automation\!
-sleep 1
-
-## Load test tone into Main log=1 (Aux 1 log=2, Aux 2 log=3)
-rmlsend PX\ 1\ 999999\!
-sleep 1
-
-## Start the log playing
-rmlsend PN\ 1\!
-sleep 10
-
-## Load the test tone in the button at row 1, column 1 of the current panel.
-rmlsend PE\ C\ 1\ 1\ 999999\!
-sleep 1
-
-#Play the button at row 1, column 1 of the current panel.
-rmlsend PP\ C\ 1\ 1\!
-
-sleep 6
-## Changed OK and CANCEL to YES and NO geoff 2010.05.08
-zenity --question --title="RRAbuntu Rivendell Setup - Did you hear it?" --text="If you heard the test tone twice then this script has properly configured Rivendell. If you would like, we can now install the demo the same as with the live CD.  Press YES to install the demo audio and logs. NO to not install the demo."
-# Check the exit status $? to see if the user clicked OK(=0) or Cancel(=1).
-# Then exit the whole script if they clicked Cancel.-FJH 2010.03.16
-if [ $? = 0 ]; then
-install_demo
-fi
-
+function thanksforinstallingrrabuntu(){
 zenity --info --title="RRAbuntu Rivendell Setup" --text="Thank you for installing RRAbuntu. Visit the Rivendell website and download the Rivendell Operations Guide from the Docs section on page. Print out for more advanced configuration. www.rivendellaudio.org . 
 Many Thanks from Geoff Barkman, Frederick Henderson and Alban Peignier"
+}
 
-
-###############################################################################
-# New Section below to Clean Up Desktop and New Icons on Desktop - geoff 2010.05.09
-
+function cleanupicons(){
 sleep 5
 
 zenity --question --title="PS. Clean up and Add Icons?" --text="P.S. Did you want to delete the no longer required Installer icons and add some New Icons on the desktop for Rdairplay, Rdlibrary, Rdedit and Rdlogmanager?  If you do need them again there is some back up copies sitting in your home directory in the Rivendell icons folder"
@@ -461,14 +483,36 @@ cp /home/$currentuser/Rivendell/icons/rdlogedit.desktop /home/$currentuser/Deskt
 cp /home/$currentuser/Rivendell/icons/rdlogmanager.desktop /home/$currentuser/Desktop/rdlogmanager.desktop
 
 fi
+}
 
+function devilspiecleanup(){
 # Clean up, if devilspie was running before we started this script then leave it running otherwise kill it.
 if [ ! $LEAVEDEVILSPIERUNNING = 1 ]; then
 	killall devilspie
 fi
+}
 
+function cleanuprrabuntu_autostart_sh_desktop(){
 # Clean up, Get rid of desktop file that displays the prompt to run this script. FJH
 rm ~/.config/autostart/RRAbuntu_autostart.sh.desktop
+}
 
-
+################## HERE STARTS THE MAIN PROGRAM ####################
+devilspiestartup
+readytoconfigure
+disablepaautospawning
+entersudopassword
+addcurrentlinuxusertorivendellandaudiogroups
+copycurrenlinuxusertoaudioowner
+setpermissionsforvarsnd
+setpermissionsforvarlogrivendell
+startrivendelldaemons
+startrdadminfirsttime
+generatetesttone
+removesudotimestamp
+rdairplaydemo
+thanksforinstallingrrabuntu
+cleanupicons
+devilspiecleanup
+cleanuprrabuntu_autostart_sh_desktop
 # END
