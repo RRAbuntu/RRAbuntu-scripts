@@ -1,14 +1,16 @@
 #!/bin/bash
-#set -x ## For testing purposes
+set -x ## For testing purposes
 #
-#RRAbuntu-demo.sh 
+# RRAbuntu-First_run.sh
 #
-# Setup test tone, promos, sample logs for demoing Rivendell with RRAbuntu.
+# To assist in installing RRAbuntu.
 #
-#   (C) Copyright 2002-2003 Frederick Henderson <frederick@henderson-meier.org>
-#
-#      RRAbuntu-demo.sh,v 1.11 2010.03.18  FJH
-#
+#   Geoff Barkman 2010
+#   (based on scripts created by Frederick Henderson)
+#  RRAbuntu-First_run.sh,v 1.11 2010.03.18 FJH
+#   
+#   Sections below created by Frederick Henderson
+# 
 #   This program is free software; you can redistribute it and/or modify
 #   it under the terms of the GNU General Public License version 2 as
 #   published by the Free Software Foundation.
@@ -25,38 +27,134 @@
 #
 ## KEY TO CHANGE LOG AND CHANGES Initials
 # FJH= Frederick Henderson frederickjh@henderson-meier.org
+#
 <<CHANGELOG
-####################### CHANGE LOG ######################
- version 1.11
- changed version numbers to match CD release numbers. 
- intermediary changes before the next CD get a third number like
- 1.11.1 then 1.11.2 then 1.11.3 etc. -FJH
+########################## CHANGE LOG ##################################
+version 1.11
+changed version numbers to match CD release numbers. 
+intermediary changes before the next CD get a third number like
+1.11.1 then 1.11.2 then 1.11.3 etc.-FJH
 
- Added renaming of Rivendell Promos to script -FJH
+Changed sudo statements to be done via a function that also make 
+sure that the script does not continue on its merry way if something 
+does not happen correctly.-FJH
 
- Removed extra RML command to start play list as loading the
- play list also started the its as well. This was causing the
- audio to jump at the start of the demo. -FJH
+Change initial prompt to a question and added code so the user can abort
+the script if it is not what they wanted to do.-FJH
 
-Set the asyncronous field to N as this was causing a runawy condition
-in the Aux1 log that was disrupting the audio playout as it was trying
-to run all the macros in the cart at once.-FJH
+Removed some unneeded sleep statements that were just slowing down the
+pop-up of dialogues.-FJH
 
-Moved code to set proper permissions for /var/snd up in the script to 
-before Rivendell daemons are started and test tone is created. -FJH
+Added code to change the owner of /var/log/rivendell to the current linux
+user. Needs fixing upstream. -FJH
+
+Added code to automate changing the linux user name in rd.conf to the
+current linux user and then save it in /etc/rd.conf -FJH
+
+Moved code to fix permissions for /var/snd up in script to before
+Rivendell daemons start and test tone is created.-FJH
 
 Removed sudo from rdgen command  to generate test tone as it is no
 longer needed now that the linux user is set as owner of the folder
 before it is run.-FJH
 
-#########################################################
- version 1.25 initial release with RRAbuntu Live CD 1.10
-#########################################################
+Replace dialogue to reboot computer with code to start the Rivendell
+daemons. -FJH
+
+Added renaming of Rivendell Promos to script -FJH
+
+Set the asyncronous field to N as this was causing a runawy condition
+in the Aux1 log that was disrupting the audio playout as it was trying
+to run all the macros in the cart at once. Also added new text to the 
+cart to let folks know their messages cand appear in "The Label Area" -FJH
+
+
+#######################################################
+ version less initial release with RRAbuntu Live CD 1.10 was two
+ scripts RRAbuntu-Reboot-1.sh and RRAbuntu-Reboot-final.sh
+#######################################################
 CHANGELOG
 
+#### NOTE: the first part of this script used to be RRAbuntu-Reboot-1.sh
+
+
+# Change first dialog to question and added code to allow aborting. -FJH 2010.03.16
+# Fixed typo spelling of RRAbuntu. -GPB 2010.03.22
+zenity --question --title="Ready to configure RRAbuntu? " --text="These instructions are for configuring RRAbuntu on first reboot after the installation. Are you ready to do this?"
+# Check the exit status $? to see if the user clicked OK(=0) or Cancel(=1).
+# Then exit the whole script if they clicked Cancel.-FJH 2010.03.16
+if [ ! $? = 0 ]; then
+exit
+fi
+
+################### FUNCTIONS ##########################
+#
+# function to run commands as super user. This will keep give the user
+# option to re-enter the password till they get it right or allow them
+# to exit if something goes wrong instead of continuing on. 
+# Usage:
+#  run_sudo_command [COMMANDS...] -FJH 2010.03.17
+
+run_sudo_command() {
+# grab the commands pass to the function and put theme in a variable for safe keeping
+sudocommand=$*
+gksudo $sudocommand
+# Check the exit status if it is not 0 (good) then assume that the password was not entered correctly and loop them till they get it right or cancel the running of this script.
+while [ ! $? = 0 ]; do
+zenity --question --title='Attention Needed!' --text="Something is not right here. (Did you correctly enter your password? Is the Caps-Locks on?) Do you want to try to enter the password again(OK) or exit this script(Cancel)?"
+	if [ ! $? = 0 ]; then
+		exit
+		else 
+		gksudo $sudocommand
+	fi
+done
+}
+
+
+# Changed dialog to state that they will be only asked for the
+# password after they click OK.-FJH 2010.03.16
+zenity --question --title='Password will be needed!' --text="You will be asked for your password after clicking OK. Please enter your Linux user password from the Ubuntu installation. We need this as some parts of the script need to be run as the super user. If the script takes longer than 5 minutes to complete you may be asked again. If you are uncomfortable with this select Cancel to exit."
+if [ ! $? = 0 ]; then
+	exit
+fi
+
 ## Add user ubuntu to the rivendell and audio groups
-sudo adduser ubuntu rivendell
-sudo adduser ubuntu audio
+# Add current User
+
+# Make the current linux user name available as a system variable.
+export currentuser=$(whoami)
+
+run_sudo_command adduser $currentuser rivendell
+run_sudo_command adduser $currentuser audio
+
+# Find the string "AudioOwner=username"and replace the username
+# part with the currently running linux username and save it to
+# /etc/rd.conf  Also removed zenity, sleep and cp lines.-FJH 2010.03.16
+run_sudo_command sed s/AudioOwner=username/AudioOwner=$currentuser/ ~/Desktop/Rivendell/rd.conf >~/Desktop/Rivendell/temp.conf
+run_sudo_command cp ~/Desktop/Rivendell/temp.conf /etc/rd.conf
+rm temp.conf
+#/etc/rd.conf
+
+##### FIXME
+## Fix permissions to /var/snd currently the user is rduser not ubuntu
+## nor the current user.
+## Is this something we need to fix or is it something Alban needs to fix
+## or does this go back to Fred G.?
+## Moved up in the script to before Rivendell daemons are started and test tone is created. -FJH 2010.03.16
+run_sudo_command chown $currentuser:rivendell /var/snd
+
+##### FIXME
+## Fix permissions to /var/log/rivendell currently the user is rduser not ubuntu
+## nor the current user.
+## Is this something we need to fix or is it something Alban needs to fix
+## or does this go back to Fred G.?
+run_sudo_command chown $currentuser:rivendell /var/log/rivendell
+
+# Replaced dialog to tell the user to reboot with code below
+# to start the Rivendell daemons. -FJH 2010.03.16
+run_sudo_command /etc/init.d/rivendell start
+
+#### NOTE: the script below here used to be RRAbuntu-Reboot-final.sh
 
 ## Start RDAdmin to get mysql database prompt to create
 ## rivendell database. This only happens the first time
@@ -73,18 +171,22 @@ zenity --info --text="A window titled mysql Admin will pop-up behind this one. T
 zenity --info --text="Now rdadmin will start up. The username is .... admin
 with no password"
 
-## FIX ME
-## Fix permissions to /var/snd currently the user is rduser not ubuntu
-## Is this something we need to fix or is it something Alban needs to fix
-## or does this go back to Fred G.?
-## Moved up in the script to before Rivendell daemons are started and test tone is created. -FJH 2010.03.16
-sudo chown ubuntu:rivendell /var/snd
 
 ## Generate Test tone for the RDLibrary
 # Removed sudo from rdgen command  to generate test tone as it is no
 # longer needed now that the linux user is set as owner of the folder
 # before it is run.-FJH 2010.03.17
 rdgen -t 10 -l 16 /var/snd/999999_000.wav
+
+## Since we are finished with sudo commands remove the user's
+# timestamp entirely from the /etc/sudoer file to prevent them
+# from running sudo command without retyping the password as a
+# safety precaution. This would time-out in 5 minutes from the
+# time the user enter the password to allow sudo command, but
+# we want to be on the safe side.-FJH 2010.03.17
+sudo -K
+
+
 
 ## Start up RDAirplay for the user
 rdairplay &
@@ -103,18 +205,16 @@ sleep 1
 rmlsend PN\ 1\!
 sleep 10
 
-## Load the test tone in the button at row 1, column 1 of the current pannel.
+## Load the test tone in the button at row 1, column 1 of the current panel.
 rmlsend PE\ C\ 1\ 1\ 999999\!
 sleep 1
 
 #Play the button at row 1, column 1 of the current panel.
 rmlsend PP\ C\ 1\ 1\!
-sleep 5
+
+sleep 6
 
 zenity --info --text="If you heard the test tone twice then this script has properly configured Rivendell. Now on with the show!"
-
-sleep 1
-#killall rdairplay
 
 ## Change to directory with promos and add them to the library
 ## Rename Rivendell promos so the look better in the demo. Instead of 
@@ -125,10 +225,12 @@ mv Mixdown2.flac Rivendell_Promo-15000_Dollars.flac
 mv Mixdown3.flac Rivendell_Promo-Rock_Steady.flac
 rdimport --to-cart=999998 --metadata-pattern=%a-%t. TRAFFIC  ./*.flac
 
-## Include variables from rd.conf to use
-#./etc/rd.conf
-
 ## Set up the variables to use in the script
+##### FIXME The variables below are hard coded in. This is ok
+# for the demo run but if anyone wants to change their usernames
+# or passwords this means this script will fail. We should also
+# allow the user the option to set passwords and usernames as well.
+# -FJH 2010.03.16
 USER=root
 PASSWORD=rivendell
 RD_USER=rduser@localhost
@@ -227,7 +329,7 @@ ID=1
 COUNT=1
 ## Add Welcome Macro Cart to Titles log
 mysql -u $USER -p$PASSWORD -e"USE Rivendell;
-insert into TITLES_LOG(ID,COUNT,CART_NUMBER)VALUES($ID,$COUNT,050001)"
+insert into TITLES_LOG(ID,COUNT,CART_NUMBER) VALUES($ID,$COUNT,050001)"
 
 let ID=ID+1
 let COUNT=COUNT+1
@@ -237,6 +339,7 @@ let COUNT=COUNT+1
 mysql -u $USER -p$PASSWORD -e"USE Rivendell;
 insert into TITLES_LOG(ID,COUNT,TYPE,COMMENT,LABEL) VALUES($ID,$COUNT,5,\"Titles\ Log\",\"TITLES\")"
 
+
 ## Load the Sample Log in the Main log
 rmlsend LL\ 1\ Sample\ Log!
 
@@ -245,6 +348,8 @@ rmlsend LL\ 2\ Titles\ Log!
 
 sleep 100
 
-zenity --info --text="Thank you for testing the RRAbuntu demo CD. If you would like to install RRAbuntu on your system. Click on RRAbuntu-install.sh in the Rivendell folder on the desktop. www.rivendellaudio.org . 
+zenity --info --text="Thank you for installing RRAbuntu. Visit the Rivendell website and download the Rivendell Operations Guide from the Docs section on page. Print out for more advanced configuration. www.rivendellaudio.org . 
 Many Thanks from Geoff Barkman, Frederick Henderson and Alban Peignier"
+
+
 

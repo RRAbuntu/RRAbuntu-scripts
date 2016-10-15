@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#set -x ## For testing purposes
+set -x ## For testing purposes
 #
 # RRAbuntu-install.sh
 #
@@ -8,6 +8,8 @@
 #
 #   Geoff Barkman 2010
 #   (based on scripts created by Frederick Henderson)
+#
+#  RRAbuntu-install.sh,v 1.11 2010.03.18  FJH
 #     
 #   This program is free software; you can redistribute it and/or modify
 #   it under the terms of the GNU General Public License version 2 as
@@ -22,38 +24,67 @@
 #   License along with this program; if not, write to the Free Software
 #   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 #
+## KEY TO CHANGE LOG AND CHANGES Initials
+# FJH= Frederick Henderson frederickjh@henderson-meier.org
+#
+<<CHANGELOG
+######################### CHANGE LOG ###########################
+version 1.11
+changed version numbers to match CD release numbers. 
+intermediary changes before the next CD get a third number like
+1.11.1 then 1.11.2 then 1.11.3 etc. -FJH
 
-zenity --info --text="To Install Ubuntu with Rivendell click on Install Icon ... on the Desktop. This takes about 30 minutes"
+Changed starting dialogue to let the user know to click OK on the
+windows and that we will be holding their hand. -FJH
+
+Changed the starting dialogue into a question that offers to start 
+the installer or allows them to abort the script.-FJH
+
+
+################################################################
+ version-less initial release with RRAbuntu Live CD 1.10
+################################################################
+CHANGELOG
+
+## Changed opening dialog to a question offering to start the Ubuntu installer for them and allow them to abort as well.-FJH 2010.03.17
+zenity --question --title "Install RRAbuntu?" --text="This script will install Ubuntu with Rivendell click on OK to start the installer or Cancel to abort.  Installing takes about 30 minutes depending on your hardware. Don't worry we will walk you through it. Just click the OK buttons in these windows after you complete each step and an new window will pop up to help you with the next step."
+if [ ! $? = 0 ]; then
+exit
+else
+# Start Ubuntu installer
+ubiquity --desktop %k gtk_ui &
+fi
+
+
 sleep 5
 
-zenity --info --text="1 of 7  Welcome Select Language - click forward"
+zenity --info --title="RRAbuntu Installation - Step 1 of 7" --text="1 of 7  Welcome - Select your language. - Click forward"
 sleep 5
 
-zenity --info --text="2 of 7 Where are you - click location on map - click forward"
+zenity --info --title="RRAbuntu Installation - Step 2 of 7" --text="2 of 7 Where are you? - Select your location on the map. - Click forward"
 sleep 5
 
-zenity --info --text="3 of 7 Keyboard Layout - choose your keyboard layout, or keep suggested US - click forward"
+zenity --info --title="RRAbuntu Installation - Step 3 of 7" --text="3 of 7 Keyboard layout - Choose your keyboard layout, or keep suggested keyboard layout. - Click forward"
 sleep 5
 
-zenity --warning --text="4 of 7 Prepare disk space - click use entire disk (WARNING: will delete entire existing Hard  drive contents) - or choose partitions manually (advanced) Beginners DON'T choose this. - click forward"
+zenity --warning --title="RRAbuntu Installation - Step 4 of 7" --text="4 of 7 Prepare disk space - Select use entire disk. (WARNING: Selecting this option will delete your entire existing hard drive contents) - Or you can choose partitions manually (advanced users) Beginners DON'T choose this. - Click forward" &
+sleep 7
+
+zenity --info --title="RRAbuntu Installation - Other Options Tip" --text="Note there are other options at this step, but I recommend, just erasing whole disk, rather than keeping windows, i.e. dual boot (for simplicity)"
 sleep 5
 
-zenity --info --text="Note there are other options at this step, but I recommend, just erasing whole disk, rather than keeping windows ie dual boot (for simpicity)"
+zenity --info --title="RRAbuntu Installation - Step 5 of 7" --text="5 of 7 Who are you? - Type your name. - Type the user name you wish to use (NOTE:This will be all lower case letters.) - Enter your password x2 and the name of computer (could be your station name with no gaps) - Optionally select Log in automatically (Otherwise the password will be required on every boot.) - Click forward"
 sleep 5
+# Commented out by FJH. I think it is too confusing to the user.
+#zenity --info --title="RRAbuntu Installation - Step 6 of 7" --text="6 of 7 No such page on installer (ops)"
+#sleep 5
 
-zenity --info --text="5 of 7 Type your name - type your username (note it will be lowercase) - password x2 - name of computer (your station name with no gaps) - optional log in auto (otherwise leave requiring password) - forward"
-sleep 5
-
-zenity --info --text="6 of 7 No such page on installer (ops)"
-sleep 5
-
-zenity --info --text="7 of 7 Click install"
+zenity --info --title="RRAbuntu Installation - Step 7 of 7" --text="7 of 7 - Ready to install - Check that the installation settings are all correct then, click Install"
 sleep 10
 
-zenity --info --text="While installing you can surf the net if you wish, just click firefox icon. This will take
-30 mins approx.... (depends on hardware specs)"
+zenity --info --title="RRAbuntu Installation - While you wait . . ." --text="While installing you can surf the net if you wish, just click Firefox icon. This will take 30 mins approximately (depends on hardware specifications)" &
 sleep 10
 
-zenity --info --text="Once installation complete, you will be prompted to Restart Now.... Remove CD....Stand clear of the CD drawer.... and hit Enter once it pops out"
+zenity --info --title="RRAbuntu Installation - When the Installation is Finished . . ." --text="Once installation is complete, you will be prompted to Restart Now.... Stand clear of the CD drawer....Remove CD after it pops out.... and hit Enter "
 
 
